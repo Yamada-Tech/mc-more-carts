@@ -61,9 +61,17 @@ jobs:
           {
             echo "## 導入方法 (Minecraft 26.3 / Fabric サーバー)"
             echo
-            echo "- サーバーの mods/ に \`more-carts-*.jar\` + Polymer \`polymer-bundled-0.18.2+26.3.jar\` (Modrinth) + Fabric API を入れる"
-            echo "- クライアントはバニラでOK。見た目 (アイコン) は Polymer のリソースパック自動配信で届く"
-            echo "- server.properties の設定変更は不要"
+            echo "- サーバーの mods/ に下表の jar + Polymer \`polymer-bundled-0.18.2+26.3.jar\` (Modrinth) + Fabric API を入れる"
+            echo "- クライアントはバニラでOK。アイテムの見た目 (スライム緑アイコン) は Polymer のリソースパック自動配信で届く"
+            echo "- server.properties の設定変更は不要 (Polymer autohost がリソースパックを自動配信)"
+            echo
+            echo "## 添付ファイルと SHA-1"
+            echo
+            echo "| ファイル | SHA-1 |"
+            echo "|---|---|"
+            for f in dist/*.jar; do
+              echo "| \`$(basename "$f")\` | \`$(sha1sum "$f" | cut -d' ' -f1)\` |"
+            done
           } > release-notes.md
           gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
           gh release create "$TAG" dist/* \
