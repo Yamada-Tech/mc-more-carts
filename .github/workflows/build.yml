@@ -35,11 +35,44 @@ jobs:
           name: more-carts-jar
           path: build/libs/*.jar
 
+  # MOD 同梱のアセット (src/main/resources/assets/silent-cart) からサーバー配置用の
+  # リソースパック zip を作る。中身が同じなら毎回まったく同じ zip (= 同じ SHA-1) になるよう、
+  # 日時と並び順をそろえる。
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build resource pack (deterministic)
+        run: |
+          mkdir -p packbuild/assets
+          cp -r src/main/resources/assets/silent-cart packbuild/assets/
+          cat > packbuild/pack.mcmeta <<'EOF'
+          {
+            "pack": {
+              "description": "More Carts Server Pack (Silent Minecart)",
+              "min_format": 84,
+              "max_format": 127
+            }
+          }
+          EOF
+          find packbuild -exec touch -d "2024-01-01 00:00:00" {} +
+          cd packbuild
+          find . -type f | LC_ALL=C sort | sed 's|^\./||' | zip -X -q ../more-carts-resourcepack.zip -@
+          cd ..
+          sha1sum more-carts-resourcepack.zip
+
+      - name: Upload resource pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: more-carts-resourcepack
+          path: more-carts-resourcepack.zip
+
   # ビルドが終わったら、Releases に自動で公開する (プルリクエストのときは行わない)
   release:
-    needs: mod
-    # ビルドが失敗していたら公開しない
-    if: ${{ needs.mod.result == 'success' && github.event_name != 'pull_request' }}
+    needs: [mod, pack]
+    # 片方のビルドが失敗していても、成功した分だけ公開する
+    if: ${{ always() && needs.pack.result == 'success' && github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -47,7 +80,8 @@ jobs:
       - name: Download build results
         uses: actions/download-artifact@v4
         with:
-          name: more-carts-jar
+          pattern: more-carts-*
+          merge-multiple: true
           path: dist
 
       - name: Create release
@@ -58,20 +92,31 @@ jobs:
         run: |
           ls -la dist
           TAG="build-${{ github.run_number }}"
+          SHA1=$(sha1sum dist/more-carts-resourcepack.zip | cut -d' ' -f1)
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/more-carts-resourcepack.zip"
           {
+            echo "## server.properties に設定する値"
+            echo
+            echo '```properties'
+            echo "resource-pack=${URL}"
+            echo "resource-pack-sha1=${SHA1}"
+            echo "require-resource-pack=true"
+            echo '```'
+            echo
             echo "## 導入方法 (Minecraft 26.3 / Fabric サーバー)"
             echo
             echo "- サーバーの mods/ に下表の jar + Polymer \`polymer-bundled-0.18.2+26.3.jar\` (Modrinth) + Fabric API を入れる"
-            echo "- クライアントはバニラでOK。アイテムの見た目 (スライム緑アイコン) は Polymer のリソースパック自動配信で届く"
-            echo "- server.properties の設定変更は不要 (Polymer autohost がリソースパックを自動配信)"
+            echo "- クライアントはバニラでOK。アイテムの見た目 (スライム緑アイコン) は上記リソースパックで表示される"
             echo
             echo "## 添付ファイルと SHA-1"
             echo
             echo "| ファイル | SHA-1 |"
             echo "|---|---|"
-            for f in dist/*.jar; do
+            for f in dist/*; do
               echo "| \`$(basename "$f")\` | \`$(sha1sum "$f" | cut -d' ' -f1)\` |"
             done
+            echo
+            echo "※ リソースパックの中身が前回と同じなら、SHA-1 も前回と同じになります。"
           } > release-notes.md
           gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
           gh release create "$TAG" dist/* \
