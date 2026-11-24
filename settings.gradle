@@ -1,0 +1,13 @@
+pluginManagement {
+	repositories {
+		maven {
+			name = 'Fabric'
+			url = 'https://maven.fabricmc.net/'
+		}
+		mavenCentral()
+		gradlePluginPortal()
+	}
+}
+
+// 成果物 jar 名（more-carts-<version>.jar）。modid（silent-cart）とは独立
+rootProject.name = 'more-carts'

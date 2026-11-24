@@ -1,0 +1,25 @@
+{
+	"schemaVersion": 1,
+	"id": "silent-cart",
+	"version": "${version}",
+	"name": "Silent Cart",
+	"description": "Adds a quiet minecart with slime wheels - same performance as vanilla, almost no riding sound.",
+	"authors": [
+		"mc-silent-cart"
+	],
+	"contact": {},
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.example.silentcart.SilentCartMod"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*",
+		"polymer-core": "*"
+	}
+}
